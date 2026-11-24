@@ -1,5 +1,5 @@
 # Mirrors 4lwayz/portwatch-vi to GitHub Pages. Checks upstream every 30 min, deploys only when it changed.
-# Skipped: upstream's scout, IndexNow ping, asset-version stamping and deploy retries (mirror only needs the static build).
+# Skipped: upstream's scout, IndexNow ping and deploy retries (mirror only needs the static build).
 name: Mirror
 
 on:
@@ -63,6 +63,10 @@ jobs:
           sed -i -E "s#^(export const SUPABASE_(URL|KEY) = ).*#\1'';#; s#^(export const STATS_PAUSED = ).*#\1true;#" _site/assets/js/config.js
           grep -q "STATS_PAUSED = true" _site/assets/js/config.js   # fail the build if upstream renamed these
           node scripts/build-site.mjs _site
+          # Version every CSS/JS URL (from upstream's pages.yml) so browsers never pair new HTML with stale or 404-cached assets.
+          v="$(git rev-parse --short=8 HEAD)"
+          find _site -name '*.html' -exec sed -i -E "s#(assets/(css|js)/[A-Za-z0-9_-]+\.(css|js))([\"'])#\1?v=$v\4#g" {} +
+          sed -i -E "s#(from '\./[A-Za-z0-9_-]+\.js)'#\1?v=$v'#g" _site/assets/js/*.js
 
       - if: steps.check.outputs.changed == 'true'
         uses: actions/configure-pages@v5
