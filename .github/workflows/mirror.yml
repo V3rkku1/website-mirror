@@ -1,0 +1,85 @@
+# Mirrors 4lwayz/portwatch-vi to GitHub Pages. Checks upstream every 30 min, deploys only when it changed.
+# Skipped: upstream's scout, IndexNow ping, asset-version stamping and deploy retries (mirror only needs the static build).
+name: Mirror
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch: {}
+  push:
+    branches: [main, claude/magical-einstein-5ykmr9]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check upstream
+        id: check
+        run: |
+          sha=$(git ls-remote https://github.com/4lwayz/portwatch-vi HEAD | cut -f1)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          # Scheduled runs skip when nothing changed; push/manual runs always deploy.
+          if [ "${{ github.event_name }}" = schedule ] && [ "$sha" = "$(cat upstream.sha 2>/dev/null)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.check.outputs.changed == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: 4lwayz/portwatch-vi
+          ref: ${{ steps.check.outputs.sha }}
+          path: src
+
+      - if: steps.check.outputs.changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build site
+        if: steps.check.outputs.changed == 'true'
+        working-directory: src
+        run: |
+          mkdir -p _site
+          cp -r index.html assets data _site/
+          touch _site/.nojekyll
+          node scripts/build-site.mjs _site
+
+      - if: steps.check.outputs.changed == 'true'
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - if: steps.check.outputs.changed == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: src/_site
+
+      - id: deployment
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/deploy-pages@v4
+
+      # Committing the SHA records what is live and keeps the schedule alive (GitHub pauses crons after 60 idle days).
+      - name: Record upstream SHA
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          echo "${{ steps.check.outputs.sha }}" > upstream.sha
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add upstream.sha
+          git diff --cached --quiet || { git commit -m "Mirror upstream ${{ steps.check.outputs.sha }} [skip ci]" && git push; }
