@@ -1,10 +1,11 @@
 # Mirrors 4lwayz/portwatch-vi to GitHub Pages. Checks upstream every 10 min, deploys only when it changed.
-# Skipped: upstream's scout, IndexNow ping and deploy retries (mirror only needs the static build).
+# Skipped: upstream's scout, IndexNow ping and upstream's second deploy retry (mirror only needs the static build).
 name: Mirror
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    # Off the :00/:10 marks: GitHub drops or delays many runs scheduled on round minutes.
+    - cron: '3-59/10 * * * *'
   workflow_dispatch: {}
   push:
     branches: [main, claude/magical-einstein-5ykmr9]
@@ -23,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -78,8 +79,17 @@ jobs:
         with:
           path: src/_site
 
+      # GitHub sometimes can't find the just-uploaded artifact yet ("No artifacts named github-pages"). Retry once.
       - id: deployment
         if: steps.check.outputs.changed == 'true'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - if: steps.deployment.outcome == 'failure'
+        run: sleep 30
+
+      - id: deployment_retry
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
 
       # Committing the SHA records what is live and keeps the schedule alive (GitHub pauses crons after 60 idle days).
