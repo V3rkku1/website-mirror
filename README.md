@@ -2,7 +2,7 @@
 
 Mirror of [PortWatch VI](https://github.com/4lwayz/portwatch-vi), served at https://v3rkku1.github.io/website-mirror/.
 
-`.github/workflows/mirror.yml` checks upstream every 30 minutes and redeploys GitHub Pages when it changes.
+`.github/workflows/mirror.yml` checks upstream every 5 minutes and redeploys GitHub Pages when it changes.
 
 ## A note to the owner of PortWatch VI
 
