@@ -33,8 +33,8 @@ jobs:
         run: |
           sha=$(git ls-remote https://github.com/4lwayz/portwatch-vi HEAD | cut -f1)
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          # Scheduled runs skip when nothing changed; push/manual runs always deploy.
-          if [ "${{ github.event_name }}" = schedule ] && [ "$sha" = "$(cat upstream.sha 2>/dev/null)" ]; then
+          # Scheduled and dispatched runs (incl. the external timer) skip when nothing changed; pushes always deploy.
+          if [ "${{ github.event_name }}" != push ] && [ "$sha" = "$(cat upstream.sha 2>/dev/null)" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
