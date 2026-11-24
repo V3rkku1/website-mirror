@@ -1,10 +1,10 @@
-# Mirrors 4lwayz/portwatch-vi to GitHub Pages. Checks upstream every 5 min (GitHub's minimum), deploys only when it changed.
+# Mirrors 4lwayz/portwatch-vi to GitHub Pages. Checks upstream every 10 min, deploys only when it changed.
 # Skipped: upstream's scout, IndexNow ping and deploy retries (mirror only needs the static build).
 name: Mirror
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/10 * * * *'
   workflow_dispatch: {}
   push:
     branches: [main, claude/magical-einstein-5ykmr9]
