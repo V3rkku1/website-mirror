@@ -58,6 +58,10 @@ jobs:
           mkdir -p _site
           cp -r index.html assets data _site/
           touch _site/.nojekyll
+          # /api/live is a Cloudflare Function (can't run on Pages), and stats would write into upstream's Supabase.
+          # Blank the keys and pause stats: the live pill stays hidden and the page never calls /api/live or Supabase.
+          sed -i -E "s#^(export const SUPABASE_(URL|KEY) = ).*#\1'';#; s#^(export const STATS_PAUSED = ).*#\1true;#" _site/assets/js/config.js
+          grep -q "STATS_PAUSED = true" _site/assets/js/config.js   # fail the build if upstream renamed these
           node scripts/build-site.mjs _site
 
       - if: steps.check.outputs.changed == 'true'
